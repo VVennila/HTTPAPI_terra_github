@@ -189,14 +189,14 @@ module "acm" {
   source  = "terraform-aws-modules/acm/aws"
   version = "~> 4.0"
 
-  domain_name       = "${local.name_prefix}.sctp-sandbox.com" # Full domain name
+  domain_name       = lower("${local.name_prefix}.sctp-sandbox.com") # Full domain name
   zone_id           = data.aws_route53_zone.zone.zone_id      # Route 53 hosted zone ID
   validation_method = "DNS"                                   # Validation through Route 53 DNS records
 }
 
 # Define the custom domain for API Gateway (HTTP API)
 resource "aws_apigatewayv2_domain_name" "http_api" {
-  domain_name = "${local.name_prefix}.sctp-sandbox.com" # Your custom domain name
+  domain_name = lower("${local.name_prefix}.sctp-sandbox.com") # Your custom domain name
 
   domain_name_configuration {
     certificate_arn = module.acm.acm_certificate_arn # ACM certificate ARN

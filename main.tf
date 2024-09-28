@@ -215,7 +215,7 @@ resource "aws_apigatewayv2_api_mapping" "example" {
 # Create a DNS record in Route 53 to map the custom domain to the API Gateway domain
 resource "aws_route53_record" "http_api" {
   zone_id = data.aws_route53_zone.zone.zone_id                # Route 53 hosted zone ID
-  name    = aws_apigatewayv2_domain_name.http_api.domain_name # Domain name (custom domain)
+  name    = lower(aws_apigatewayv2_domain_name.http_api.domain_name) # Domain name (custom domain)
   type    = "A"                                               # A record for aliasing the domain
 
   alias {

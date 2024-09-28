@@ -19,11 +19,10 @@ resource "aws_dynamodb_table" "table" {
     name = "title"
     type = "S"
   }
-
 }
 
 #========================================================================
-// lambda setup
+// Lambda setup
 #========================================================================
 
 data "archive_file" "lambda_zip" {
@@ -32,11 +31,11 @@ data "archive_file" "lambda_zip" {
   output_path = "${path.module}/src.zip"
 }
 
-//Define lambda function
+// Define lambda function
 resource "aws_lambda_function" "http_api_lambda" {
   filename         = data.archive_file.lambda_zip.output_path
   function_name    = "${local.name_prefix}-lambda"
-  description      = "Lambda function to write to dynamodb"
+  description      = "Lambda function to write to DynamoDB"
   runtime          = "python3.8"
   handler          = "app.lambda_handler"
   source_code_hash = data.archive_file.lambda_zip.output_base64sha256
@@ -64,8 +63,7 @@ resource "aws_iam_role" "lambda_exec" {
       Principal = {
         Service = "lambda.amazonaws.com"
       }
-      }
-    ]
+    }]
   })
 }
 
@@ -141,9 +139,9 @@ resource "aws_apigatewayv2_stage" "default" {
       status                  = "$context.status"
       responseLength          = "$context.responseLength"
       integrationErrorMessage = "$context.integrationErrorMessage"
-      }
-    )
+    })
   }
+
   depends_on = [aws_cloudwatch_log_group.api_access_logs]
 }
 
@@ -178,7 +176,7 @@ resource "aws_lambda_permission" "api_gw" {
 }
 
 #========================================================================
-// custom domain for API Gateway section
+// Custom domain for API Gateway section
 #========================================================================
 
 # Fetch the Route 53 hosted zone information for your domain
@@ -197,7 +195,7 @@ module "acm" {
 }
 
 # Define the custom domain for API Gateway (HTTP API)
-resource "aws_apigatewayv2_domain_name" "http-api" {
+resource "aws_apigatewayv2_domain_name" "http_api" {
   domain_name = "${local.name_prefix}.sctp-sandbox.com" # Your custom domain name
 
   domain_name_configuration {
@@ -210,19 +208,19 @@ resource "aws_apigatewayv2_domain_name" "http-api" {
 # Map the custom domain to an API Gateway stage
 resource "aws_apigatewayv2_api_mapping" "example" {
   api_id      = aws_apigatewayv2_api.http_api.id                  # API ID
-  domain_name = aws_apigatewayv2_domain_name.http-api.domain_name # Custom domain name
+  domain_name = aws_apigatewayv2_domain_name.http_api.domain_name # Custom domain name
   stage       = aws_apigatewayv2_stage.default.name               # API Gateway stage name
 }
 
 # Create a DNS record in Route 53 to map the custom domain to the API Gateway domain
-resource "aws_route53_record" "http-api" {
+resource "aws_route53_record" "http_api" {
   zone_id = data.aws_route53_zone.zone.zone_id                # Route 53 hosted zone ID
-  name    = aws_apigatewayv2_domain_name.http-api.domain_name # Domain name (custom domain)
+  name    = aws_apigatewayv2_domain_name.http_api.domain_name # Domain name (custom domain)
   type    = "A"                                               # A record for aliasing the domain
 
   alias {
-    name                   = aws_apigatewayv2_domain_name.http-api.domain_name_configuration[0].target_domain_name # Target domain name (API Gateway)
-    zone_id                = aws_apigatewayv2_domain_name.http-api.domain_name_configuration[0].hosted_zone_id     # Hosted zone ID
+    name                   = aws_apigatewayv2_domain_name.http_api.domain_name_configuration[0].target_domain_name # Target domain name (API Gateway)
+    zone_id                = aws_apigatewayv2_domain_name.http_api.domain_name_configuration[0].hosted_zone_id     # Hosted zone ID
     evaluate_target_health = false                                                                                 # Optional: Route 53 health check (false by default)
   }
 }

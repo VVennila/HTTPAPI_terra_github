@@ -176,3 +176,53 @@ resource "aws_lambda_permission" "api_gw" {
 
   source_arn = "${aws_apigatewayv2_api.http_api.execution_arn}/*/*"
 }
+
+#========================================================================
+// custom domain for API Gateway section
+#========================================================================
+
+# Fetch the Route 53 hosted zone information for your domain
+data "aws_route53_zone" "zone" {
+  name = "sctp-sandbox.com"
+}
+
+# ACM (AWS Certificate Manager) module for managing SSL certificates
+module "acm" {
+  source  = "terraform-aws-modules/acm/aws"
+  version = "~> 4.0"
+
+  domain_name       = "${local.name_prefix}.sctp-sandbox.com" # Full domain name
+  zone_id           = data.aws_route53_zone.zone.zone_id      # Route 53 hosted zone ID
+  validation_method = "DNS"                                   # Validation through Route 53 DNS records
+}
+
+# Define the custom domain for API Gateway (HTTP API)
+resource "aws_apigatewayv2_domain_name" "http-api" {
+  domain_name = "${local.name_prefix}.sctp-sandbox.com" # Your custom domain name
+
+  domain_name_configuration {
+    certificate_arn = module.acm.acm_certificate_arn # ACM certificate ARN
+    endpoint_type   = "REGIONAL"                     # API Gateway supports REGIONAL or EDGE endpoints
+    security_policy = "TLS_1_2"                      # TLS security policy
+  }
+}
+
+# Map the custom domain to an API Gateway stage
+resource "aws_apigatewayv2_api_mapping" "example" {
+  api_id      = aws_apigatewayv2_api.http_api.id                  # API ID
+  domain_name = aws_apigatewayv2_domain_name.http-api.domain_name # Custom domain name
+  stage       = aws_apigatewayv2_stage.default.name               # API Gateway stage name
+}
+
+# Create a DNS record in Route 53 to map the custom domain to the API Gateway domain
+resource "aws_route53_record" "http-api" {
+  zone_id = data.aws_route53_zone.zone.zone_id                # Route 53 hosted zone ID
+  name    = aws_apigatewayv2_domain_name.http-api.domain_name # Domain name (custom domain)
+  type    = "A"                                               # A record for aliasing the domain
+
+  alias {
+    name                   = aws_apigatewayv2_domain_name.http-api.domain_name_configuration[0].target_domain_name # Target domain name (API Gateway)
+    zone_id                = aws_apigatewayv2_domain_name.http-api.domain_name_configuration[0].hosted_zone_id     # Hosted zone ID
+    evaluate_target_health = false                                                                                 # Optional: Route 53 health check (false by default)
+  }
+}
